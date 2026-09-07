@@ -31,6 +31,15 @@ level means fewer detections.
 Enable debug logging. Useful for seeing satellite connections and each wake
 word detection in the logs.
 
+## Bundled Wake Word Models
+
+10 wake word models ship with the add-on: `hey_livekit`, `nihao_livekit`,
+5 English/German `hey_buddy` variants, `stop_buddy_en_large_v2`, and
+`go_buddy_en_large_v2`. `hey_livekit` loads by default; select any others
+by name from your Wyoming client. See the
+[main README](../README.md#getting-onnx-models) for the full list and
+sources.
+
 ## Custom Wake Word Models
 
 The add-on automatically loads custom wake word models (`.onnx`) from the

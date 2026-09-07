@@ -5,7 +5,7 @@ Low-latency wake word detection for Home Assistant, based on
 via the [Wyoming](https://github.com/rhasspy/wyoming) protocol.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](livekit_wakeword/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](livekit_wakeword/CHANGELOG.md)
 
 ## Why this add-on
 
@@ -39,13 +39,27 @@ section of the upstream repo.
 - livekit-wakeword `.onnx` models only work with this add-on (the official
   openWakeWord Wyoming server expects `.tflite` files, not `.onnx`);
 - livekit-wakeword can in turn **evaluate** `.onnx` models trained with
-  openWakeWord (`livekit-wakeword eval config.yaml -m model.onnx`) and can
-  export to a `.tflite` format compatible with openWakeWord (`dnn` head
-  only, requires the `tflite` extra), see
+  openWakeWord for benchmarking purposes
+  (`livekit-wakeword eval config.yaml -m model.onnx`) and can export to a
+  `.tflite` format compatible with openWakeWord (`dnn` head only, requires
+  the `tflite` extra), see
   [Export & Inference](https://github.com/livekit/livekit-wakeword/blob/main/docs/export-and-inference.md#tflite-export-openwakeword-compatible).
 
 So don't expect to load an existing `.tflite` file directly in this
 add-on: it needs to be re-exported/trained as `.onnx` first.
+
+**Important, verified by testing:** even though openWakeWord's own `.onnx`
+classifier exports match the `(16, 96)` input shape, we tested running
+them live through this add-on's actual detection pipeline (streaming
+audio, not a one-shot offline check) and detection quality was poor
+(best score 0.37 on a clean "alexa" sample, below the 0.5 default
+threshold; other models scored near zero). Their `timer`/`weather`
+models are not usable at all here: they expect 34-frame and 22-frame
+embedding windows instead of the fixed 16-frame window this add-on uses,
+and `timer` is a 7-class intent classifier, not a binary wake word. For
+this reason none of openWakeWord's pretrained models are bundled with
+this add-on; only models trained natively with livekit-wakeword's
+`conv_attention` head are included (see below).
 
 ## Installing as a Home Assistant add-on
 
@@ -80,10 +94,11 @@ docker run -it -p 10400:10400 \
     --trigger-level 1
 ```
 
-The default `hey_livekit.onnx` model ships inside the Python package; to
-use only custom models, pass the desired names in the Wyoming `detect`
-message from your client (e.g. Home Assistant Assist with the Wyoming
-integration).
+10 wake word models ship inside the Python package (see
+[Getting .onnx models](#getting-onnx-models)); `hey_livekit` loads by
+default. To use a different bundled model, or your own custom ones, pass
+the desired names in the Wyoming `detect` message from your client (e.g.
+Home Assistant Assist with the Wyoming integration).
 
 ## Configuration
 
@@ -98,10 +113,37 @@ The same options are exposed as CLI flags (`--threshold`,
 
 ## Getting .onnx models {#getting-onnx-models}
 
-**Bundled model:** `hey_livekit.onnx` ("hey livekit"), bundled by default
-with the add-on, taken from
-[`livekit-wakeword/examples/resources`](https://github.com/livekit/livekit-wakeword/tree/main/examples/resources)
-(Apache-2.0).
+### Bundled models
+
+10 models ship with the add-on, all using the native livekit-wakeword
+`conv_attention` architecture (no openWakeWord models are bundled, see
+[Compatibility](#compatibility) for why). Select one or more by name in
+the Wyoming `detect` message; `hey_livekit` loads by default when no
+name is given.
+
+| Name                     | Phrase      | Language | Source                                                                                                  | License    |
+| ------------------------- | ----------- | -------- | --------------------------------------------------------------------------------------------------------- | ---------- |
+| `hey_livekit`              | Hey LiveKit | en       | [livekit-wakeword examples](https://github.com/livekit/livekit-wakeword/tree/main/examples/resources)      | Apache-2.0 |
+| `nihao_livekit`            | Nihao LiveKit | zh     | [livekit-wakeword examples](https://github.com/livekit/livekit-wakeword/tree/main/examples/resources)      | Apache-2.0 |
+| `hey_buddy_en_medium`      | Hey Buddy   | en       | [LAION Bud-E wake word models](https://huggingface.co/laion/bud-e_wakeword-models_livekit-wakeword)        | Apache-2.0 |
+| `hey_buddy_en_small`       | Hey Buddy   | en       | LAION Bud-E wake word models                                                                                | Apache-2.0 |
+| `hey_buddy_en_medium_v2`   | Hey Buddy   | en       | LAION Bud-E wake word models (speed/pitch-robust variant)                                                   | Apache-2.0 |
+| `hey_buddy_en_large_v3`    | Hey Buddy   | en       | LAION Bud-E wake word models (adversarial confusable-phrase training)                                       | Apache-2.0 |
+| `hey_buddy_de_medium`      | Hey Buddy   | de       | LAION Bud-E wake word models                                                                                | Apache-2.0 |
+| `hey_buddy_de_small`       | Hey Buddy   | de       | LAION Bud-E wake word models                                                                                | Apache-2.0 |
+| `stop_buddy_en_large_v2`   | Stop Buddy  | en       | LAION Bud-E wake word models (companion command word)                                                       | Apache-2.0 |
+| `go_buddy_en_large_v2`     | Go Buddy    | en       | LAION Bud-E wake word models (companion command word)                                                       | Apache-2.0 |
+
+The LAION models were picked from a larger published set based on their
+own reported evaluation metrics (AUT, false positives/hour, recall);
+see their [model card](https://huggingface.co/laion/bud-e_wakeword-models_livekit-wakeword)
+for the full list of sizes/variants and how to train more languages or
+phrases with the same toolkit.
+
+Loading multiple models at once (e.g. `hey_buddy_en_medium` +
+`stop_buddy_en_large_v2` + `go_buddy_en_large_v2` together) works and was
+tested; each active model runs its own classifier pass per audio window,
+so CPU usage scales with the number of concurrently active models.
 
 **Custom models:** copy `.onnx` files into `/share/livekit_wakeword`
 (via the Samba add-on, or directly on the Home Assistant OS filesystem)
@@ -183,4 +225,11 @@ It conceptually derives from and builds on:
   front-end.
 - [livekit-wakeword](https://github.com/livekit/livekit-wakeword)
   (Apache-2.0), the inference/training library used by this add-on,
-  including the bundled `hey_livekit.onnx` model.
+  including the bundled `hey_livekit.onnx` and `nihao_livekit.onnx`
+  models.
+- [LAION Bud-E wake word models](https://huggingface.co/laion/bud-e_wakeword-models_livekit-wakeword)
+  (Apache-2.0), the bundled `hey_buddy`/`stop_buddy`/`go_buddy` models,
+  trained with the livekit-wakeword toolkit.
+
+All bundled `.onnx` models are Apache-2.0. See the
+[bundled models table](#getting-onnx-models) for per-model sources.
