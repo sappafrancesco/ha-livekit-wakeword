@@ -5,7 +5,7 @@ Low-latency wake word detection for Home Assistant, based on
 via the [Wyoming](https://github.com/rhasspy/wyoming) protocol.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](livekit_wakeword/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-green.svg)](livekit_wakeword/CHANGELOG.md)
 
 ## Why this add-on
 
@@ -94,7 +94,7 @@ docker run -it -p 10400:10400 \
     --trigger-level 1
 ```
 
-10 wake word models ship inside the Python package (see
+11 wake word models ship inside the Python package (see
 [Getting .onnx models](#getting-onnx-models)); `hey_livekit` loads by
 default. To use a different bundled model, or your own custom ones, pass
 the desired names in the Wyoming `detect` message from your client (e.g.
@@ -115,7 +115,7 @@ The same options are exposed as CLI flags (`--threshold`,
 
 ### Bundled models
 
-10 models ship with the add-on, all using the native livekit-wakeword
+11 models ship with the add-on, all using the native livekit-wakeword
 `conv_attention` architecture (no openWakeWord models are bundled, see
 [Compatibility](#compatibility) for why). Select one or more by name in
 the Wyoming `detect` message; `hey_livekit` loads by default when no
@@ -133,12 +133,27 @@ name is given.
 | `hey_buddy_de_small`       | Hey Buddy   | de       | LAION Bud-E wake word models                                                                                | Apache-2.0 |
 | `stop_buddy_en_large_v2`   | Stop Buddy  | en       | LAION Bud-E wake word models (companion command word)                                                       | Apache-2.0 |
 | `go_buddy_en_large_v2`     | Go Buddy    | en       | LAION Bud-E wake word models (companion command word)                                                       | Apache-2.0 |
+| `hey_aurora`               | Hey Aurora  | en       | Trained for this add-on with livekit-wakeword (see below)                                                   | Apache-2.0 |
 
 The LAION models were picked from a larger published set based on their
 own reported evaluation metrics (AUT, false positives/hour, recall);
 see their [model card](https://huggingface.co/laion/bud-e_wakeword-models_livekit-wakeword)
 for the full list of sizes/variants and how to train more languages or
 phrases with the same toolkit.
+
+**About `hey_aurora`:** trained specifically for this add-on (`conv_attention`,
+medium size, 20k steps) on CPU, without the optional ~16 GB ACAV100M
+general-negative-speech dataset (skipped for disk space). Real evaluation
+on 17.5 hours of held-out validation audio: AUT=0.0059 (competitive with
+the LAION `medium` models), but at the default 0.5 threshold FPPH is high
+(4.57) because the model never saw generic background speech as
+negatives during training. **If you use `hey_aurora`, set `threshold` to
+`0.9`** in the add-on options (or `--threshold 0.9` standalone). At that
+threshold, evaluation shows FPPH=0.11 and recall=74.4%, in line with the
+other bundled models. Note `threshold` is a single add-on-wide setting
+that applies to every active model, so mixing `hey_aurora` with other
+models in the same `detect` call means picking one threshold that works
+reasonably for all of them, or running two separate add-on instances.
 
 Loading multiple models at once (e.g. `hey_buddy_en_medium` +
 `stop_buddy_en_large_v2` + `go_buddy_en_large_v2` together) works and was

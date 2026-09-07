@@ -33,12 +33,13 @@ word detection in the logs.
 
 ## Bundled Wake Word Models
 
-10 wake word models ship with the add-on: `hey_livekit`, `nihao_livekit`,
-5 English/German `hey_buddy` variants, `stop_buddy_en_large_v2`, and
-`go_buddy_en_large_v2`. `hey_livekit` loads by default; select any others
-by name from your Wyoming client. See the
-[main README](../README.md#getting-onnx-models) for the full list and
-sources.
+11 wake word models ship with the add-on: `hey_livekit`, `nihao_livekit`,
+5 English/German `hey_buddy` variants, `stop_buddy_en_large_v2`,
+`go_buddy_en_large_v2`, and `hey_aurora`. `hey_livekit` loads by default;
+select any others by name from your Wyoming client. See the
+[main README](../README.md#getting-onnx-models) for the full list,
+sources, and per-model notes (`hey_aurora` needs `threshold: 0.9`, not
+the default `0.5`).
 
 ## Custom Wake Word Models
 
