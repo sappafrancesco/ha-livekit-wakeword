@@ -34,6 +34,7 @@ LAION_ATTRIBUTION = Attribution(
     name="laion",
     url="https://huggingface.co/laion/bud-e_wakeword-models_livekit-wakeword",
 )
+ADDON_ATTRIBUTION = Attribution(name="", url="")
 
 # Metadata for models bundled with this add-on: name -> (phrase, language, attribution)
 BUNDLED_MODEL_INFO = {
@@ -47,6 +48,7 @@ BUNDLED_MODEL_INFO = {
     "hey_buddy_de_small": ("Hey Buddy", "de", LAION_ATTRIBUTION),
     "stop_buddy_en_large_v2": ("Stop Buddy", "en", LAION_ATTRIBUTION),
     "go_buddy_en_large_v2": ("Go Buddy", "en", LAION_ATTRIBUTION),
+    "hey_aurora": ("Hey Aurora", "en", ADDON_ATTRIBUTION),
 }
 
 
