@@ -27,6 +27,28 @@ CHUNK_FRAMES = 25  # 25 * 80ms = 2s window required by WakeWordModel.predict()
 
 DEFAULT_MODEL = "hey_livekit"
 
+LIVEKIT_ATTRIBUTION = Attribution(
+    name="livekit", url="https://github.com/livekit/livekit-wakeword"
+)
+LAION_ATTRIBUTION = Attribution(
+    name="laion",
+    url="https://huggingface.co/laion/bud-e_wakeword-models_livekit-wakeword",
+)
+
+# Metadata for models bundled with this add-on: name -> (phrase, language, attribution)
+BUNDLED_MODEL_INFO = {
+    "hey_livekit": ("Hey LiveKit", "en", LIVEKIT_ATTRIBUTION),
+    "nihao_livekit": ("Nihao LiveKit", "zh", LIVEKIT_ATTRIBUTION),
+    "hey_buddy_en_medium": ("Hey Buddy", "en", LAION_ATTRIBUTION),
+    "hey_buddy_en_small": ("Hey Buddy", "en", LAION_ATTRIBUTION),
+    "hey_buddy_en_medium_v2": ("Hey Buddy", "en", LAION_ATTRIBUTION),
+    "hey_buddy_en_large_v3": ("Hey Buddy", "en", LAION_ATTRIBUTION),
+    "hey_buddy_de_medium": ("Hey Buddy", "de", LAION_ATTRIBUTION),
+    "hey_buddy_de_small": ("Hey Buddy", "de", LAION_ATTRIBUTION),
+    "stop_buddy_en_large_v2": ("Stop Buddy", "en", LAION_ATTRIBUTION),
+    "go_buddy_en_large_v2": ("Go Buddy", "en", LAION_ATTRIBUTION),
+}
+
 
 @dataclass
 class TriggerState:
@@ -104,17 +126,14 @@ class LiveKitWakeWordEventHandler(AsyncEventHandler):
         ww_names = set()
         if names:
             for ww_name in names:
-                if ww_name in self.state.custom_models or ww_name == DEFAULT_MODEL:
+                if ww_name in self.state.known_names():
                     ww_names.add(ww_name)
 
         if not ww_names:
             ww_names.add(DEFAULT_MODEL)
 
         for ww_name in ww_names - set(self.loaded_models.keys()):
-            model_path = self.state.custom_models.get(ww_name)
-            if model_path is None and ww_name == DEFAULT_MODEL:
-                model_path = self.state.default_model_path
-
+            model_path = self.state.resolve_model(ww_name)
             if model_path is None:
                 continue
 
@@ -177,25 +196,29 @@ class LiveKitWakeWordEventHandler(AsyncEventHandler):
         _LOGGER.debug("Client disconnected: %s", self.client_id)
 
     def _get_info(self) -> Info:
-        models = [
-            WakeModel(
-                name=DEFAULT_MODEL,
-                description="Hey LiveKit",
-                phrase="Hey LiveKit",
-                attribution=Attribution(
-                    name="livekit", url="https://github.com/livekit/livekit-wakeword"
-                ),
-                installed=True,
-                languages=["en"],
-                version=__version__,
-            )
-        ]
+        models = []
 
-        for custom_model in self.state.custom_models:
-            phrase = _get_phrase(custom_model)
+        for name in sorted(self.state.bundled_models):
+            phrase, language, attribution = BUNDLED_MODEL_INFO.get(
+                name, (_get_phrase(name), "", Attribution(name="", url=""))
+            )
             models.append(
                 WakeModel(
-                    name=custom_model,
+                    name=name,
+                    description=phrase,
+                    phrase=phrase,
+                    attribution=attribution,
+                    installed=True,
+                    languages=[language] if language else [],
+                    version=__version__,
+                )
+            )
+
+        for name in sorted(self.state.custom_models):
+            phrase = _get_phrase(name)
+            models.append(
+                WakeModel(
+                    name=name,
                     description=phrase,
                     phrase=phrase,
                     attribution=Attribution(name="", url=""),
@@ -213,10 +236,7 @@ class LiveKitWakeWordEventHandler(AsyncEventHandler):
                         "Conv-attention wake word detection, backward compatible "
                         "with openWakeWord models."
                     ),
-                    attribution=Attribution(
-                        name="livekit",
-                        url="https://github.com/livekit/livekit-wakeword",
-                    ),
+                    attribution=LIVEKIT_ATTRIBUTION,
                     installed=True,
                     version=__version__,
                     models=models,
