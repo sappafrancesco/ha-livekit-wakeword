@@ -1,0 +1,27 @@
+---
+version: 1.0.0
+slug: livekit_wakeword
+name: LiveKit WakeWord
+description: livekit-wakeword using the Wyoming protocol
+url: https://github.com/sappafrancesco/ha-livekit-wakeword/tree/main/livekit_wakeword
+arch:
+  - amd64
+  - aarch64
+init: false
+discovery:
+  - wyoming
+backup_exclude:
+  - "*.onnx"
+map:
+  - share:ro
+options:
+  threshold: 0.5
+  trigger_level: 1
+  debug_logging: false
+schema:
+  threshold: float
+  trigger_level: int
+  debug_logging: bool
+ports:
+  "10400/tcp": null
+homeassistant: 2023.9.0.dev20230809
